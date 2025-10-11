@@ -50,7 +50,15 @@ let rec evaluate (ctx: VariableContext) e =
             match op with
             | "-" -> ValNum(-v)
             | _ -> failwith ("unsupported binary operator")
-// TODO: Add the correct handling of 'If' here!
+    | If(cond, tbranch, fbranch) ->
+        let cval = evaluate ctx cond
+
+        match cval with
+        | ValNum cval ->
+            if cval = 1 then
+                evaluate ctx tbranch
+            else
+                evaluate ctx fbranch
 
 
 // ----------------------------------------------------------------------------
