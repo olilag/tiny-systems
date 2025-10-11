@@ -49,7 +49,7 @@ let rec evaluate (ctx: VariableContext) e =
         | ValNum v ->
             match op with
             | "-" -> ValNum(-v)
-            | _ -> failwith ("unsupported binary operator")
+            | _ -> failwith "unsupported binary operator"
     | If(cond, tbranch, fbranch) ->
         let cval = evaluate ctx cond
 
