@@ -48,12 +48,10 @@ let rec evaluate (ctx: VariableContext) e =
             | "*" -> ValNum(n1 * n2)
             | _ -> failwith "unsupported binary operator"
         | _ -> failwith "unsupported value type in binary operation"
-
     | Variable(v) ->
         match ctx.TryFind v with
         | Some res -> res
         | _ -> failwith ("unbound variable: " + v)
-
     | Unary(op, e) ->
         let v = evaluate ctx e
 
@@ -63,7 +61,6 @@ let rec evaluate (ctx: VariableContext) e =
             | "-" -> ValNum(-v)
             | _ -> failwith "unsupported binary operator"
         | _ -> failwith "unsupported value type in unary operation"
-
     | If(cond, tbranch, fbranch) ->
         let cval = evaluate ctx cond
 
@@ -74,9 +71,7 @@ let rec evaluate (ctx: VariableContext) e =
             else
                 evaluate ctx fbranch
         | _ -> failwith "unsupported value type in condition"
-
     | Lambda(v, e) -> ValClosure(v, e, ctx)
-
     | Application(e1, e2) ->
         let closure = evaluate ctx e1
 
