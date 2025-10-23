@@ -9,7 +9,7 @@ type Value =
     | NumberValue of int
     | BoolValue of bool
 
-and Expression =
+type Expression =
     | Const of Value
     // NOTE: Added functions and variables. Functions  are used for both
     // functions (later) and binary operators (in this step). We use only
@@ -17,7 +17,7 @@ and Expression =
     | Function of string * Expression list
     | Variable of string
 
-and Command =
+type Command =
     | Print of Expression
     | Run
     | Goto of int
@@ -26,11 +26,9 @@ and Command =
     | Assign of string * Expression
     | If of Expression * Command
 
-and State =
+type State =
     { Program: list<int * Command>
-      Context: VariableContext }
-
-and VariableContext = Map<string, Value>
+      Variables: Map<string, Value> }
 
 // ----------------------------------------------------------------------------
 // Utilities
@@ -86,7 +84,7 @@ let rec evalExpression state expr =
             | _ -> failwith "incompatible arguments for '-'"
         | n -> failwith ("unknown function: " + n)
     | Variable name ->
-        match state.Context.TryFind name with
+        match state.Variables.TryFind name with
         | Some res -> res
         | _ -> failwith ("unbound variable: " + name)
 
@@ -116,7 +114,7 @@ let rec runCommand state (line, cmd) =
 
         let newState =
             { state with
-                Context = Map.add name v state.Context }
+                Variables = Map.add name v state.Variables }
 
         runNextLine newState line
     | If(condExpr, cmd) ->
@@ -162,7 +160,7 @@ let runInputs state cmds =
 // Test cases
 // ----------------------------------------------------------------------------
 
-let empty = { Program = []; Context = Map.empty } // TODO: Add empty variables to the initial state!
+let empty = { Program = []; Variables = Map.empty } // TODO: Add empty variables to the initial state!
 
 let helloOnce =
     [ Some 10, Print(Const(StringValue "HELLO WORLD\n"))
