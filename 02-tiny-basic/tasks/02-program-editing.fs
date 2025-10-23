@@ -52,8 +52,6 @@ let rec runCommand state (line, cmd) =
         runCommand state goto
 
 and runNextLine state line =
-    // TODO: Find a program line with the number greater than 'line' and evalaute
-    // it using 'runCommand' (if found) or just return 'state' (if not found).
     let findFn = fun (l, _) -> l > line
     let res = List.tryFind findFn state.Program
 
@@ -66,14 +64,6 @@ and runNextLine state line =
 // ----------------------------------------------------------------------------
 
 let runInput state (line, cmd) =
-    // TODO: Simulate what happens when the user enters a line of code in the
-    // interactive terminal. If the 'line' number is 'Some ln', we want to
-    // insert the line into the right location of the program (addLine); if it
-    // is 'None', then we want to run it immediately. To make sure that
-    // 'runCommand' does not try to run anything afterwards, you can pass
-    // 'System.Int32.MaxValue' as the line number to it (or you could use -1
-    // and handle that case specially in 'runNextLine')
-
     match line with
     | Some n ->
         let indexFn = fun (l, _) -> l >= n
@@ -89,9 +79,6 @@ let runInput state (line, cmd) =
     | None -> runCommand state (-1, cmd)
 
 let runInputs state cmds =
-    // TODO: Apply all the specified commands to the program state using 'runInput'.
-    // This is a one-liner if you use 'List.fold' which has the following type:
-    //   ('State -> 'T -> 'State) -> 'State -> list<'T> -> 'State
     let foldFn = fun acc elem -> runInput acc elem
     List.fold foldFn state cmds
 
