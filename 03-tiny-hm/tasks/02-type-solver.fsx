@@ -2,35 +2,64 @@
 // 02 - Solving type constraints with numbers and Booleans
 // ----------------------------------------------------------------------------
 
-// NOTE: We will only need lists later, but to make this exercise 
-// a bit more interesting, we will implement constraint resolution 
+// NOTE: We will only need lists later, but to make this exercise
+// a bit more interesting, we will implement constraint resolution
 // for lists here already. This will help you in the next steps!
-type Type = 
-  | TyVariable of string
-  | TyBool 
-  | TyNumber 
-  | TyList of Type
+type Type =
+    | TyVariable of string
+    | TyBool
+    | TyNumber
+    | TyList of Type
 
-let occursCheck vcheck ty =
-  // TODO: Return true of type 'ty' contains variable 'vcheck'
-  failwith "not implemented"
- 
-let rec substType (subst:Map<string, Type>) ty = 
-  // TODO: Apply all the specified substitutions to the type 'ty'
-  // (that is, replace all occurrences of 'v' in 'ty' with 'subst.[v]')
-  failwith "not implemented"
+let rec occursCheck vcheck ty =
+    // TODO: Return true of type 'ty' contains variable 'vcheck'
+    match ty with
+    | TyVariable name -> name = vcheck
+    | TyBool
+    | TyNumber -> false
+    | TyList ty -> occursCheck vcheck ty
 
-let substConstrs (subst:Map<string, Type>) (cs:list<Type * Type>) = 
-  // TODO: Apply substitution 'subst' to all types in constraints 'cs'
-  failwith "not implemented"
- 
+let rec substType (subst: Map<string, Type>) ty =
+    // TODO: Apply all the specified substitutions to the type 'ty'
+    // (that is, replace all occurrences of 'v' in 'ty' with 'subst.[v]')
+    match ty with
+    | TyVariable name ->
+        match Map.tryFind name subst with
+        | Some s -> s
+        | None -> TyVariable name
+    | TyBool -> TyBool
+    | TyNumber -> TyNumber
+    | TyList ty -> TyList(substType subst ty)
+
+let substConstrs (subst: Map<string, Type>) (cs: list<Type * Type>) =
+    // TODO: Apply substitution 'subst' to all types in constraints 'cs'
+    cs |> List.map (fun (tyl, tyr) -> substType subst tyl, substType subst tyr)
+
 
 let rec solve cs =
-  match cs with 
-  | [] -> []
-  | (TyNumber, TyNumber)::cs -> solve cs
-  // TODO: Fill in the remaining cases! You can closely follow the
-  // example from task 1 - the logic here is exactly the same.
+    match cs with
+    | [] -> []
+    | (TyNumber, TyNumber) :: cs
+    | (TyBool, TyBool) :: cs -> solve cs
+    | (TyList ty1, TyList ty2) :: cs -> solve ((ty1, ty2) :: cs)
+    | (ty, TyVariable v) :: cs
+    | (TyVariable v, ty) :: cs ->
+        if occursCheck v ty then
+            failwith "Cannot be solved (occurs check)"
+
+        let subst = Map.ofList [ v, ty ]
+        let cs = substConstrs subst cs
+        let subst = solve cs
+        let ty = substType (Map.ofList subst) ty
+        (v, ty) :: subst
+    | (TyNumber, _) :: _
+    | (TyBool, _) :: _
+    | (TyList _, _) :: _
+    | (_, TyNumber) :: _
+    | (_, TyBool) :: _
+    | (_, TyList _) :: _ -> failwith "Cannot be solved"
+// TODO: Fill in the remaining cases! You can closely follow the
+// example from task 1 - the logic here is exactly the same.
 
 
 // ----------------------------------------------------------------------------
@@ -38,20 +67,15 @@ let rec solve cs =
 // ----------------------------------------------------------------------------
 
 // Can be solved ('a = number, 'b = list<number>)
-solve  
-  [ TyList(TyVariable("a")), TyList(TyNumber)
-    TyVariable("b"), TyList(TyVariable("a")) ]
+solve
+    [ TyList(TyVariable("a")), TyList(TyNumber)
+      TyVariable("b"), TyList(TyVariable("a")) ]
 
 // Cannot be solved (list<'a> <> bool)
-solve  
-  [ TyList(TyVariable("a")), TyVariable("b")
-    TyVariable("b"), TyBool ]
+solve [ TyList(TyVariable("a")), TyVariable("b"); TyVariable("b"), TyBool ]
 
 // Can be solved ('a = number, 'b = list<number>)
-solve  
-  [ TyList(TyVariable("a")), TyVariable("b")
-    TyVariable("b"), TyList(TyNumber) ]
+solve [ TyList(TyVariable("a")), TyVariable("b"); TyVariable("b"), TyList(TyNumber) ]
 
 // Cannot be solved ('a <> list<'a>)
-solve  
-  [ TyList(TyVariable("a")), TyVariable("a") ]
+solve [ TyList(TyVariable("a")), TyVariable("a") ]
