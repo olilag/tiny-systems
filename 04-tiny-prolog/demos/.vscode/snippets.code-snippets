@@ -1,0 +1,44 @@
+{
+	"adv-squares": {
+		"prefix": "adv-squares",
+		"body": [
+			"[1;4;9;16;25;36]"
+		],
+		"description": "Squares list"
+	},
+	"adv-expr": {
+		"prefix": "adv-expr",
+		"body": [
+      "type Expression = ",
+      "  | Constant of int",
+      "  | Binary of string * Expression * Expression",
+      "  | Unary of string * Expression",
+      "",
+      "let e = ",
+      "  Binary(\"+\", Unary(\"-\", Constant(4)),",
+      "    Unary(\"-\", Binary(\"*\", Unary(\"-\", ",
+      "      Constant(3)), Constant(2))))",            
+		],
+		"description": "Expressions"
+	},
+  "magic-list": {
+		"prefix": "magic-list",
+		"body": [
+			"[A1,A2,A3,B1,B2,B3,C1,C2,C3]"
+		],
+		"description": "Magic square list"
+	},
+	"magic-sums": {
+		"prefix": "magic-sums",
+		"body": [
+      "15 is A3 + B2 + C1,",
+      "15 is A1 + A2 + A3,",
+      "15 is B1 + B2 + B3,",
+      "15 is C1 + C2 + C3,",
+      "15 is A1 + B1 + C1,",
+      "15 is A2 + B2 + C2,",
+      "15 is A3 + B3 + C3.",    
+		],
+		"description": "Magic square sums"
+	}
+}
