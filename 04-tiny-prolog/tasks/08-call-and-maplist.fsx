@@ -2,16 +2,14 @@
 // 07 - Generating magic squares in TinyProlog
 // ----------------------------------------------------------------------------
 
-type Term = 
-  | Atom of string
-  | Variable of string
-  | Predicate of string * Term list
-  // NOTE: Added 'Call' as a special kind of predicate
-  | Call of Term * Term list
+type Term =
+    | Atom of string
+    | Variable of string
+    | Predicate of string * Term list
+    // NOTE: Added 'Call' as a special kind of predicate
+    | Call of Term * Term list
 
-type Clause =
-  { Head : Term
-    Body : Term list }
+type Clause = { Head: Term; Body: Term list }
 
 type Program = Clause list
 
@@ -23,103 +21,268 @@ let rule p b = { Head = p; Body = b }
 // Substitutions and unification of terms
 // ----------------------------------------------------------------------------
 
-let rec substitute (subst:Map<string, Term>) term = 
-  // TODO: Add a case for 'Call' to substitution 
-  failwith "implemented in step 2"
+let rec substitute (subst: Map<string, Term>) term =
+    // Replace variables in 'term' for which there is a
+    // replacement specified by 'subst.[var]' with the replacement.
+    // You can assume the terms in 'subst' do not contain
+    // any of the variables that we want to replace.
+    match term with
+    | Atom a -> Atom a
+    | Variable v ->
+        match Map.tryFind v subst with
+        | Some s -> s
+        | None -> Variable v
+    | Predicate(p, ts) ->
+        let ts = ts |> List.map (fun t -> substitute subst t)
+        Predicate(p, ts)
+    | Call(p, args) ->
+        let p = substitute subst p
+        let args = args |> List.map (fun t -> substitute subst t)
+        Call(p, args)
 
-let substituteSubst (newSubst:Map<string, Term>) (subst:list<string * Term>) = 
-  failwith "implemented in step 2"
 
-let substituteTerms subst (terms:list<Term>) = 
-  failwith "implemented in step 2"
+let substituteSubst (newSubst: Map<string, Term>) (subst: list<string * Term>) =
+    // Apply the substitution 'newSubst' to all the terms
+    // in the existing substitiution 'subst'. (We represent one
+    // as a map and the other as a list of pairs, which is a bit
+    // inelegant, but it makes calling this function easier later.)
+    subst |> List.map (fun (s, t) -> s, substitute newSubst t)
 
-let rec unifyLists l1 l2 = 
-  failwith "implemented in steps 1 and 2"
 
-and unify t1 t2 = 
-  // TODO: This is where we need a clever trick to handle 'Call'!
-  // Unification can succeed if we have a predicate and a call with a
-  // corresponding predicate as the first argument. So we can unify:
-  //
-  //   Predicate(p1, args1) ~ Call(Predicate(p2, args2a), args2b)
-  //
-  // When 'p1 = p2' and when we can unify 'args1 ~ args2a @ args2b'.
-  failwith "implemented in step 1"
+let substituteTerms (subst: Map<string, Term>) (terms: list<Term>) =
+    // Apply substitution 'subst' to all the terms in 'terms'
+    terms |> List.map (fun t -> substitute subst t)
+
+
+let rec unifyLists l1 l2 =
+    match l1, l2 with
+    | [], [] -> Some []
+    | h1 :: t1, h2 :: t2 ->
+        let s1 = unify h1 h2
+
+        match s1 with
+        | Some s1 ->
+            let subst = Map.ofList s1
+            let t1 = substituteTerms subst t1
+            let t2 = substituteTerms subst t2
+
+            match unifyLists t1 t2 with
+            | Some s2 ->
+                let subst = Map.ofList s2
+                let s1 = substituteSubst subst s1
+                Some(s1 @ s2)
+            | _ -> None
+        | _ -> None
+    | _ -> None
+
+and unify t1 t2 =
+    // This is where we need a clever trick to handle 'Call'!
+    // Unification can succeed if we have a predicate and a call with a
+    // corresponding predicate as the first argument. So we can unify:
+    //
+    //   Predicate(p1, args1) ~ Call(Predicate(p2, args2a), args2b)
+    //
+    // When 'p1 = p2' and when we can unify 'args1 ~ args2a @ args2b'.
+    match t1, t2 with
+    | Atom a1, Atom a2 when a1 = a2 -> Some []
+    | Predicate(p1, t1), Predicate(p2, t2) when p1 = p2 -> unifyLists t1 t2
+    | Variable v, t
+    | t, Variable v -> Some [ v, t ]
+    | Predicate(p1, args1), Call(Predicate(p2, args2a), args2b)
+    | Call(Predicate(p2, args2a), args2b), Predicate(p1, args1) when p1 = p2 -> unifyLists args1 (args2a @ args2b)
+    | _ -> None
 
 // ----------------------------------------------------------------------------
 // Pretty printing terms
 // ----------------------------------------------------------------------------
 
-let rec (|Number|_|) term = 
-  failwith "implemented in step 5"
+let rec (|Number|_|) term =
+    // Write an active pattern to recognize numbers in the form used below.
+    // If the term is 'Atom("zero")' return Some(0).
+    // If the term is 'Predicate("succ", [n])' where 'n' is itself
+    // a term representing number, return the number value +1.
+    match term with
+    | Atom "zero" -> Some 0
+    | Predicate("succ", [ Number n ]) -> Some(n + 1)
+    | _ -> None
 
-let rec (|List|_|) term : option<list<Term>> = 
-  failwith "implemented in step 6"
 
-let rec formatTerm term = 
-  // TODO: You can format 'Call(args)' as 'Predicate("call", args)'
-  failwith "implemented in step 5 and 6"
+let rec (|List|_|) term : option<list<Term>> =
+    // If the term represents a list, this should return the
+    // elements of the list collected in an ordinary F# list.
+    // If the term is 'Atom("empty")' return Some([])
+    // If the term is 'Predicate("cons", [h; tl])' where 'tl' is itself
+    // a term representing a list 'l', return Some(h::l).
+    match term with
+    | Atom "empty" -> Some []
+    | Predicate("cons", [ h; List l ]) -> Some(h :: l)
+    | _ -> None
+
+let rec formatTerm term =
+    // You can format 'Call(args)' as 'Predicate("call", args)'
+    match term with
+    | Number n -> string n
+    | List l -> sprintf "[%s]" (l |> List.map formatTerm |> String.concat ", ")
+    | Atom s -> s
+    | Variable v -> v
+    | Predicate(p, items) -> sprintf "%s(%s)" p (items |> List.map formatTerm |> String.concat ", ")
+    | Call(p, args) -> sprintf "call(%s, %s)" (formatTerm p) (args |> List.map formatTerm |> String.concat ", ")
 
 // ----------------------------------------------------------------------------
 // Searching the program (database) and variable renaming
 // ----------------------------------------------------------------------------
 
-let nextNumber = 
-  let mutable n = 0
-  fun () -> n <- n + 1; n
+let nextNumber =
+    let mutable n = 0
 
-let rec freeVariables term =  
-  // TODO: Add a case for 'Call' when getting free variables
-  failwith "implemented in step 3"
+    fun () ->
+        n <- n + 1
+        n
 
-let withFreshVariables (clause:Clause) : Clause =
-  failwith "implemented in step 3"
+let rec freeVariables term =
+    // Return a list of all variables that appear in 'term'
+    // (this may contain duplicates, we will eliminate them below)
+    // HINT: Use List.collect: ('a -> list<'b>) -> list<'a> -> list<'b>
+    match term with
+    | Atom _ -> []
+    | Variable v -> [ v ]
+    | Predicate(_, ts) -> ts |> List.collect freeVariables
+    | Call(t, args) -> freeVariables t @ (args |> List.collect freeVariables)
 
-let query (program:list<Clause>) (query:Term) =
-  failwith "implemented in step 3"
+let withFreshVariables (clause: Clause) : Clause =
+    // Get a list of distinct variables in the clause (using
+    // 'freeVariables' and 'List.distinct'), generate a substitution
+    // that append a number 'n' obtained by 'nextNumber()' to the end
+    // of all the variable names, and apply the substitutions to the
+    // head and body of the clause.
+    //
+    // For example, 'grandparent(X,Y) :- parent(X,Z), parent(Z,Y)' may
+    // become 'grandparent(X3,Y3) :- parent(X3,Z3), parent(Z3,Y3)'
+    //
+    // This may not be correct if the user-provided names of variables
+    // had numbers in them in a certain format, but that's OK for now!
+    let vars =
+        freeVariables clause.Head @ (clause.Body |> List.collect freeVariables)
+        |> List.distinct
+
+    let n = nextNumber ()
+    let subst = Map.ofList (vars |> List.map (fun v -> v, Variable(sprintf "%s%i" v n)))
+    let head = substitute subst clause.Head
+    let body = substituteTerms subst clause.Body
+    { Head = head; Body = body }
 
 
-let rec solve program subst goals =
-  failwith "implemented in steps 4 and 6"
+let query (program: list<Clause>) (query: Term) : list<Clause * list<string * Term>> =
+    // Return all clauses from 'program' whose 'Head' can be
+    // unified with the specified 'query' and return the resulting
+    // substitutions. Before unifying, rename variables in the program
+    // rule using 'withFreshVariables'. You can do this using 'List.choose'
+    // or by using list comprehension.
+    //
+    // The return type of this is a list of tuples consisting of the matching
+    // clause and a substitution (list<string * Term>). Calling 'unify'
+    // gives you 'option<list<string * Term>>', so you need to pattern match
+    // on this and if it is 'Some(subst)' return 'Some(clause, subst)'.
+    program
+    |> List.choose (fun c ->
+        let c = withFreshVariables c
+        Option.bind (fun subst -> Some(c, subst)) (unify c.Head query))
 
-let run program query = 
-  failwith "implemented in step 6"
+
+let rec solve program subst goals : seq<list<string * Term>> =
+    seq {
+        // We want to change this function to return a lazy sequence
+        // of all possible substitutions solving the problem. I already
+        // wrapped the code in 'seq { .. }' block for you. Change the rest
+        // to recursively call 'solve' using 'yield!' and return new
+        // solutions using 'yield' (replacing the printing code).
+        match goals with
+        | g :: goals ->
+            // We need to solve the goal (term) 'g'. To do so, find all
+            // matching clauses in the 'program' using 'query' and iterate over
+            // the returned list using 'for clause, newSubst in matches do'.
+            // For each possible solution, we need to add the 'clause.Body' to
+            // the list of 'goals' and apply the substitution 'newSubst' to the
+            // new concatentated list of 'goals'. Then we need to apply the
+            // substitution 'newSubst' to the substitution 'subst' we have so far,
+            // append the two and call 'solve' recursively with this new substitution
+            // to solve the new goals.
+            let matches = query program g
+
+            for clause, newSubst in matches do
+                let newGoals = substituteTerms (Map.ofList newSubst) (goals @ clause.Body)
+                let subst = substituteSubst (Map.ofList newSubst) subst
+                yield! solve program (subst @ newSubst) newGoals
+
+        | [] ->
+            // We solved all goals, which means 'subst' is a possible solution!
+            yield subst
+
+    }
+
+
+let run program query =
+    let vars = Set.ofSeq (freeVariables query)
+
+    for subst in solve program [] [ query ] do
+        // To avoid cluttered output, we want to only print assignment
+        // for variables that appear in the original query (and skip all
+        // variables generated by the various internal matches). You can do
+        // this here by iterating over variables and printing them only if
+        // they are included in 'vars' (test using 'vars.Contains')
+        for (v, t) in subst |> List.filter (fun (v, t) -> vars.Contains v) do
+            printfn "%s -> %s" v (formatTerm t)
+
+        printfn "--------------------------------------------"
 
 // ----------------------------------------------------------------------------
 // Calculating with numbers
 // ----------------------------------------------------------------------------
 
-let rec num n = failwith "implemented in step 5"
+let rec num n =
+    match n with
+    | 0 -> Atom "zero"
+    | n -> Predicate("succ", [ num (n - 1) ])
 
-let nums = [
-  fact (Predicate("add", [Atom("zero"); Variable("X"); Variable("X")]))
-  rule (Predicate("add", [Predicate("succ", [ Variable("X") ]); Variable("Y"); Predicate("succ", [ Variable("Z")]) ])) [
-    Predicate("add", [Variable("X"); Variable("Y"); Variable("Z")])
-  ]
-  fact (Predicate("eq", [Variable("X"); Variable("X")]))
-]
+let nums =
+    [ fact (Predicate("add", [ Atom("zero"); Variable("X"); Variable("X") ]))
+      rule
+          (Predicate(
+              "add",
+              [ Predicate("succ", [ Variable("X") ])
+                Variable("Y")
+                Predicate("succ", [ Variable("Z") ]) ]
+          ))
+          [ Predicate("add", [ Variable("X"); Variable("Y"); Variable("Z") ]) ]
+      fact (Predicate("eq", [ Variable("X"); Variable("X") ])) ]
 
 
 // ----------------------------------------------------------------------------
 // Working with lists
 // ----------------------------------------------------------------------------
 
-let rec makeList l : Term = 
-  failwith "implemented in step 6"
+let rec makeList l : Term =
+    // Write a helper that generates a term representing a list.
+    // This should return Atom("empty") when 'l' is [] and otherwise
+    // cons(t1, .. cons(tN, empty)) when 'l' is [t1; ...; tN]
+    match l with
+    | [] -> Atom "empty"
+    | h :: t -> Predicate("cons", [ h; makeList t ])
 
-let append = [ 
-  fact (Predicate("append", [Atom("empty"); Variable("X"); Variable("X") ]))
-  rule (Predicate("append", [
-    Predicate("cons", [Variable("X"); Variable("Y") ])
-    Variable("Z"); Predicate("cons", [Variable("X"); Variable("W") ])
-  ])) [
-    Predicate("append", [ Variable("Y"); Variable("Z"); Variable("W") ])
-  ]
-]
+let append =
+    [ fact (Predicate("append", [ Atom("empty"); Variable("X"); Variable("X") ]))
+      rule
+          (Predicate(
+              "append",
+              [ Predicate("cons", [ Variable("X"); Variable("Y") ])
+                Variable("Z")
+                Predicate("cons", [ Variable("X"); Variable("W") ]) ]
+          ))
+          [ Predicate("append", [ Variable("Y"); Variable("Z"); Variable("W") ]) ] ]
 
-let l1to4 = makeList [ for i in 1 .. 4 -> num i ]
-let l5to9 = makeList [ for i in 5 .. 9 -> num i ]
-let l1to9 = makeList [ for i in 1 .. 9 -> num i ]
+let l1to4 = makeList [ for i in 1..4 -> num i ]
+let l5to9 = makeList [ for i in 5..9 -> num i ]
+let l1to9 = makeList [ for i in 1..9 -> num i ]
 
 // ----------------------------------------------------------------------------
 // Call and maplist
@@ -128,25 +291,24 @@ let l1to9 = makeList [ for i in 1 .. 9 -> num i ]
 // The Prolog 'call' operation takes a term and a list of arguments
 // and supplies the arguments as additional arguments to the term.
 // So, for example, calling 'call(add(1), 2, X)' becomes 'add(1, 2, X)'
-run nums (Call(Predicate("add", [num 1]), [num 2; Variable "X"]))
-run nums (Call(Predicate("add", [num 1; Variable "X"]), [num 5]))
+run nums (Call(Predicate("add", [ num 1 ]), [ num 2; Variable "X" ]))
+run nums (Call(Predicate("add", [ num 1; Variable "X" ]), [ num 5 ]))
 
 // This can be used to implement the 'maplist' function:
 // $ maplist(_, [], []).
 // $ maplist(G,[X|Xs],[Y|Ys]) :- maplist(G,Xs,Ys), call(G,X,Y).
-let maplist = [
-  fact (Predicate("maplist", [ Variable("_"); Atom("empty"); Atom("empty") ]))
-  rule (Predicate("maplist", [ 
-    Variable("G")
-    Predicate("cons", [ Variable("X"); Variable("Xs") ])
-    Predicate("cons", [ Variable("Y"); Variable("Ys") ]);  
-  ])) [
-    Predicate("maplist", [ Variable("G"); Variable("Xs"); Variable("Ys") ])
-    Call(Variable("G"), [ Variable("X"); Variable("Y") ])
-  ]
-]
+let maplist =
+    [ fact (Predicate("maplist", [ Variable("_"); Atom("empty"); Atom("empty") ]))
+      rule
+          (Predicate(
+              "maplist",
+              [ Variable("G")
+                Predicate("cons", [ Variable("X"); Variable("Xs") ])
+                Predicate("cons", [ Variable("Y"); Variable("Ys") ]) ]
+          ))
+          [ Predicate("maplist", [ Variable("G"); Variable("Xs"); Variable("Ys") ])
+            Call(Variable("G"), [ Variable("X"); Variable("Y") ]) ] ]
 
 // Query: maplist(add(10), l1to9, Y)
 // Returns: Y -> [11; 12; ..; 19]
-run (nums @ maplist) (Predicate("maplist", 
-  [ Predicate("add", [num 10]); l1to9; Variable("Y") ]))
+run (nums @ maplist) (Predicate("maplist", [ Predicate("add", [ num 10 ]); l1to9; Variable("Y") ]))
